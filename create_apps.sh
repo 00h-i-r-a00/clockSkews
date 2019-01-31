@@ -3,7 +3,7 @@
 num_apps=$1
 path_var='/home/hira/research/clock_skew_scripts/grace_periods/apps'
 start=expr
-password="gandalf287"
+password="password"
 
 
 ##delete all previous crt's and keys
