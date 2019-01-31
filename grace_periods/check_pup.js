@@ -7,7 +7,7 @@ var domain_name = process.argv.slice(2)[0];
 
     try{
         await page.goto(domain_name);
-        await page.screenshot({path: 'example.png'});
+        //await page.screenshot({path: 'example.png'});
         await browser.close();
     } catch (e) {
         console.log("There was an error: ");
