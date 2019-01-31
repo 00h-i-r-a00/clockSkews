@@ -16,6 +16,7 @@ import pdb
 import sys
 import os
 import shlex
+import time
 
 
 def generate_root_CA():
@@ -143,9 +144,20 @@ def generate_csr(key, domain_name):
 def collect_results():
     pass
 
-def build_table(type_):
+def build_table(type_, test_type, device_name, thresholds):
     """build table as python or latex"""
-    pass
+    x = PrettyTable()    
+    x.field_names = [device_name] + thresholds
+    
+    "Chrome," + test_type + "," + str(notAfter_date) + "," + thresholds[index], ",fail"
+    
+    ##read all Chromep entries
+    ##get all test_type rows
+    ##loop rows
+    ##show table
+    
+    
+    
 
 def run_chrome_automation(domains, thresholds, notAfter_date, test_type):
     """
@@ -155,19 +167,19 @@ def run_chrome_automation(domains, thresholds, notAfter_date, test_type):
     
     f = open('out.txt', 'w') 
 
-    for index, domain in enumarate(domains):        
+    for index, domain in enumerate(domains):        
         cmd = "nodejs /home/hira/check_pup.js https://" + domain
         args = shlex.split(cmd)
         proc = Popen(args, stdout=PIPE, stderr=PIPE)
         out, err = proc.communicate()
         exitcode = proc.returncode
         
-        if "ERR_CERT_DATE_INVALID" in out:
-            f.write("Chrome," + test_type + "," + str(notAfter_date) + "," + thresholds[index], ",fail")
+        if b"ERR_CERT_DATE_INVALID" in out:
+            f.write("Chrome," + test_type + "," + str(notAfter_date) + "," + str(thresholds[index]) + ",fail")
             f.write("\n")
             
         elif len(out) == 0:
-            f.write("Chrome," + test_type + "," + str(notAfter_date) + "," + thresholds[index], ",pass")
+            f.write("Chrome," + test_type + "," + str(notAfter_date) + "," + str(thresholds[index]) + ",pass")
             f.write("\n")
         
 def sign_certificate_request(csr, rootkey, rootcrt, client_key, domain_name, notBefore, notAfter):
@@ -215,11 +227,13 @@ def sign_certificate_request(csr, rootkey, rootcrt, client_key, domain_name, not
 
 def deploy_apps(domain_names):
     cmd = "echo gandalf287 | ./create_apps.sh " + str(len(domain_names))
-    args = shlex.split(cmd)
-    proc = Popen(args, stdout=PIPE, stderr=PIPE)
-    out, err = proc.communicate()
-    exitcode = proc.returncode
-    x = subprocess.check_output(cmd, shell=True)
+    subprocess.call(cmd, shell=True)
+    return True
+    #args = shlex.split(cmd)
+    #proc = Popen(args, stdout=PIPE, stderr=PIPE)
+    #out, err = proc.communicate()
+    #exitcode = proc.returncode
+    #x = subprocess.check_output(cmd, shell=True)
     
 def output_result_in_log(result):
     pass
@@ -228,11 +242,12 @@ def output_result_in_log(result):
 def run_firefox_automation(domain):
     pass
 
-def wait_unti_time(wait_till):
+def wait_until_time(wait_till):
     
-    current_time = datetime.datetime.now()
-    delta = current_time - wait_till
-    sleep(delta.seconds)
+    current_time = datetime.datetime.utcnow()
+    delta = wait_till - current_time
+    time.sleep(delta.seconds)
+    return
 
 def main():
 
@@ -264,14 +279,14 @@ def main():
             pass
 
     if args.test_type == "notAfter":
-
+        notBefore = datetime.datetime.utcnow()
+            
         ##after the notAfter date
         for i in range((int(args.domain_num)//2) + 1):
             split_name = args.domain_name.split(".")
             domain_name = split_name[0] + str(i + 1) + "." + ".".join(split_name[1:])
             domain_key = generate_key(domain_name)
             domain_csr = generate_csr(domain_key, domain_name)
-            notBefore = datetime.datetime.utcnow()
             notAfter = datetime.datetime.utcnow() + datetime.timedelta(minutes = int(args.timetorun) + i)
             sign_certificate_request(domain_csr, root_key, root_crt, domain_key, domain_name, notBefore, notAfter)
             domain_names.append(domain_name)
@@ -283,17 +298,18 @@ def main():
             domain_name = split_name[0] + str((int(args.domain_num) // 2) + i + 2) + "." + ".".join(split_name[1:])
             domain_key = generate_key(domain_name)
             domain_csr = generate_csr(domain_key, domain_name)
-            notBefore = datetime.datetime.utcnow()
             notAfter = datetime.datetime.utcnow() + datetime.timedelta(minutes = int(args.timetorun) - (i+1))
             sign_certificate_request(domain_csr, root_key, root_crt, domain_key, domain_name, notBefore, notAfter)
             domain_names.append(domain_name)
             thresholds.append("-" + str((i+1)))
+            
 
-        deploy_apps(domain_names)
+        base_time = datetime.datetime.utcnow() + datetime.timedelta(minutes = int(args.timetorun))
+        success = deploy_apps(domain_names)
 
         if args.device == "Chrome":
-            wait_unti_time(notAfter)
-            run_chrome_automation(domain_names)
+            wait_until_time(base_time)
+            run_chrome_automation(domain_names, thresholds, base_time, "notAfter")
             
         if args.device == "Firefox":
             pass
